@@ -61,9 +61,8 @@ stages:
           region="${host%%.*}"
           echo "region=${region}" >> "$GITHUB_OUTPUT"
       - name: Terraform init
-        working-directory: infra
         run: |
-          terraform init -input=false -reconfigure \
+          terraform -chdir=infra init -input=false -reconfigure \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ secrets.PROJECT_NAME }}/terraform.tfstate" \
             -backend-config="region=${{ steps.spaces_region.outputs.region }}" \
@@ -75,11 +74,9 @@ stages:
             -backend-config="skip_s3_checksum=true" \
             -backend-config="use_path_style=true"
       - name: Terraform plan
-        working-directory: infra
-        run: terraform plan -input=false -out=tfplan
+        run: terraform -chdir=infra plan -input=false -out=tfplan
       - name: Terraform apply
-        working-directory: infra
-        run: terraform apply -input=false tfplan
+        run: terraform -chdir=infra apply -input=false tfplan
 
   - id: configure
     kind: configure
@@ -111,11 +108,10 @@ stages:
           chmod 600 ~/.ssh/deploy_key
       - name: Re-read Terraform outputs
         id: tf_outputs
-        working-directory: infra
         run: |
           host="${AWS_ENDPOINT_URL_S3#https://}"
           region="${host%%.*}"
-          terraform init -input=false -reconfigure \
+          terraform -chdir=infra init -input=false -reconfigure \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ secrets.PROJECT_NAME }}/terraform.tfstate" \
             -backend-config="region=${region}" \
@@ -126,15 +122,14 @@ stages:
             -backend-config="skip_region_validation=true" \
             -backend-config="skip_s3_checksum=true" \
             -backend-config="use_path_style=true"
-          droplet_ip=$(terraform output -raw droplet_ip)
+          droplet_ip=$(terraform -chdir=infra output -raw droplet_ip)
           echo "droplet_ip=${droplet_ip}" >> "$GITHUB_OUTPUT"
       - name: Read DB URI from Terraform output
         id: db_uri
-        working-directory: infra
         env:
           DB_URI: ""
         run: |
-          uri=$(terraform output -raw db_uri)
+          uri=$(terraform -chdir=infra output -raw db_uri)
           echo "db_uri=${uri}" >> "$GITHUB_OUTPUT"
       - name: Scan host key
         run: |
@@ -175,11 +170,10 @@ stages:
         uses: hashicorp/setup-terraform@v3
       - name: Re-read droplet IP
         id: tf_ip
-        working-directory: infra
         run: |
           host="${AWS_ENDPOINT_URL_S3#https://}"
           region="${host%%.*}"
-          terraform init -input=false -reconfigure \
+          terraform -chdir=infra init -input=false -reconfigure \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ secrets.PROJECT_NAME }}/terraform.tfstate" \
             -backend-config="region=${region}" \
@@ -190,7 +184,7 @@ stages:
             -backend-config="skip_region_validation=true" \
             -backend-config="skip_s3_checksum=true" \
             -backend-config="use_path_style=true"
-          droplet_ip=$(terraform output -raw droplet_ip)
+          droplet_ip=$(terraform -chdir=infra output -raw droplet_ip)
           echo "droplet_ip=${droplet_ip}" >> "$GITHUB_OUTPUT"
       - name: Health check with retries
         run: |
@@ -224,9 +218,8 @@ destroy:
         region="${host%%.*}"
         echo "region=${region}" >> "$GITHUB_OUTPUT"
     - name: Terraform init
-      working-directory: infra
       run: |
-        terraform init -input=false -reconfigure \
+        terraform -chdir=infra init -input=false -reconfigure \
           -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
           -backend-config="key=${{ secrets.PROJECT_NAME }}/terraform.tfstate" \
           -backend-config="region=${{ steps.spaces_region.outputs.region }}" \
@@ -238,5 +231,4 @@ destroy:
           -backend-config="skip_s3_checksum=true" \
           -backend-config="use_path_style=true"
     - name: Terraform destroy
-      working-directory: infra
-      run: terraform destroy -input=false -auto-approve
+      run: terraform -chdir=infra destroy -input=false -auto-approve

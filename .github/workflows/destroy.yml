@@ -17,38 +17,26 @@ jobs:
       TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
       TF_VAR_django_secret_key: ${{ secrets.DJANGO_SECRET_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-      - id: spaces_region
-        name: Derive Spaces backend region
-        run: |
-          host="${AWS_ENDPOINT_URL_S3#https://}"
-          region="${host%%.*}"
-          echo "region=${region}" >> "$GITHUB_OUTPUT"
-      - name: Terraform init
-        run: |
-          terraform init -input=false -reconfigure \
-            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
-            -backend-config="key=${{ secrets.PROJECT_NAME }}/terraform.tfstate" \
-            -backend-config="region=${{ steps.spaces_region.outputs.region }}" \
-            -backend-config="endpoint=${{ secrets.SPACES_ENDPOINT }}" \
-            -backend-config="skip_credentials_validation=true" \
-            -backend-config="skip_requesting_account_id=true" \
-            -backend-config="skip_metadata_api_check=true" \
-            -backend-config="skip_region_validation=true" \
-            -backend-config="skip_s3_checksum=true" \
-            -backend-config="use_path_style=true"
-        working-directory: infra
-      - name: Remove default VPC from Terraform state
-        # DigitalOcean returns HTTP 403 "Can not delete default VPCs" when
-        # terraform destroy tries to DELETE the account's default VPC. The VPC
-        # was recorded in state with the default VPC's ID, so we evict it from
-        # state here — Terraform then skips the DELETE call entirely, and the
-        # VPC remains in the account (as it must). Errors are suppressed because
-        # the resource may already have been removed from state on a retry run.
-        run: terraform state rm digitalocean_vpc.main || true
-        working-directory: infra
-      - name: Terraform destroy
-        run: terraform destroy -input=false -auto-approve
-        working-directory: infra
+    - uses: actions/checkout@v4
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+    - id: spaces_region
+      name: Derive Spaces backend region
+      run: 'host="${AWS_ENDPOINT_URL_S3#https://}"
+
+        region="${host%%.*}"
+
+        echo "region=${region}" >> "$GITHUB_OUTPUT"
+
+        '
+    - name: Terraform init
+      run: "terraform -chdir=infra init -input=false -reconfigure \\\n  -backend-config=\"\
+        bucket=${{ secrets.TF_STATE_BUCKET }}\" \\\n  -backend-config=\"key=${{ secrets.PROJECT_NAME\
+        \ }}/terraform.tfstate\" \\\n  -backend-config=\"region=${{ steps.spaces_region.outputs.region\
+        \ }}\" \\\n  -backend-config=\"endpoint=${{ secrets.SPACES_ENDPOINT }}\" \\\
+        \n  -backend-config=\"skip_credentials_validation=true\" \\\n  -backend-config=\"\
+        skip_requesting_account_id=true\" \\\n  -backend-config=\"skip_metadata_api_check=true\"\
+        \ \\\n  -backend-config=\"skip_region_validation=true\" \\\n  -backend-config=\"\
+        skip_s3_checksum=true\" \\\n  -backend-config=\"use_path_style=true\"\n"
+    - name: Terraform destroy
+      run: terraform -chdir=infra destroy -input=false -auto-approve
