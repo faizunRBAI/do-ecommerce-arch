@@ -9,6 +9,8 @@ jobs:
     env:
       DIGITALOCEAN_TOKEN: ${{ secrets.DO_TOKEN }}
       TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
+      TF_VAR_spaces_access_key: ${{ secrets.SPACES_ACCESS_KEY }}
+      TF_VAR_spaces_secret_key: ${{ secrets.SPACES_SECRET_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.SPACES_ENDPOINT }}
@@ -29,8 +31,6 @@ jobs:
         echo "region=${region}" >> "$GITHUB_OUTPUT"
 
         '
-      env:
-        AWS_ENDPOINT_URL_S3: ${{ secrets.SPACES_ENDPOINT }}
     - name: Terraform init
       run: "terraform init -input=false -reconfigure \\\n  -backend-config=\"bucket=${{\
         \ secrets.TF_STATE_BUCKET }}\" \\\n  -backend-config=\"key=${{ secrets.PROJECT_NAME\

@@ -4,15 +4,35 @@ variable "do_token" {
   sensitive   = true
 }
 
+variable "spaces_access_key" {
+  description = "DigitalOcean Spaces access key ID"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "spaces_secret_key" {
+  description = "DigitalOcean Spaces secret access key"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "project_name" {
   description = "Project name used as a resource prefix (lowercase, hyphens only)"
   type        = string
 }
 
 variable "region" {
-  description = "DigitalOcean region slug"
+  description = "DigitalOcean region slug (Droplet/LB/Spaces)"
   type        = string
   default     = "nyc3"
+}
+
+variable "db_region" {
+  description = "DigitalOcean database cluster region slug (databases API uses 'nyc' not 'nyc3')"
+  type        = string
+  default     = "nyc"
 }
 
 variable "droplet_size" {

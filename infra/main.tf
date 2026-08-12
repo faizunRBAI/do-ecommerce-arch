@@ -16,7 +16,6 @@ resource "digitalocean_firewall" "web" {
 
   droplet_ids = [digitalocean_droplet.web.id]
 
-  # Allow HTTP + HTTPS from anywhere (LB forwards here)
   inbound_rule {
     protocol         = "tcp"
     port_range       = "80"
@@ -29,14 +28,12 @@ resource "digitalocean_firewall" "web" {
     source_addresses = ["0.0.0.0/0", "::/0"]
   }
 
-  # SSH from GitHub Actions runner IPs (open; tighten with IP allowlist in Tier 3)
   inbound_rule {
     protocol         = "tcp"
     port_range       = "22"
     source_addresses = ["0.0.0.0/0", "::/0"]
   }
 
-  # Allow all outbound
   outbound_rule {
     protocol              = "tcp"
     port_range            = "1-65535"
@@ -69,7 +66,7 @@ resource "digitalocean_droplet" "web" {
   user_data = <<-EOF
     #!/bin/bash
     apt-get update -y
-    apt-get install -y python3.11 python3.11-venv python3-pip nginx git curl
+    apt-get install -y python3-pip nginx git curl
   EOF
 }
 
@@ -79,20 +76,20 @@ resource "digitalocean_loadbalancer" "web" {
   region = var.region
 
   forwarding_rule {
-    entry_port     = 80
-    entry_protocol = "http"
+    entry_port      = 80
+    entry_protocol  = "http"
     target_port     = 80
     target_protocol = "http"
   }
 
   healthcheck {
-    protocol               = "http"
-    port                   = 80
-    path                   = "/health/"
-    check_interval_seconds = 15
+    protocol                 = "http"
+    port                     = 80
+    path                     = "/health/"
+    check_interval_seconds   = 15
     response_timeout_seconds = 5
-    unhealthy_threshold    = 3
-    healthy_threshold      = 2
+    unhealthy_threshold      = 3
+    healthy_threshold        = 2
   }
 
   droplet_ids = [digitalocean_droplet.web.id]
@@ -100,12 +97,13 @@ resource "digitalocean_loadbalancer" "web" {
 }
 
 # ─── Managed PostgreSQL ───────────────────────────────────────────────────────
+# NOTE: DO database cluster region uses short slug "nyc" not "nyc3"
 resource "digitalocean_database_cluster" "postgres" {
   name       = "${var.project_name}-pg"
   engine     = "pg"
   version    = "16"
   size       = "db-s-1vcpu-1gb"
-  region     = var.region
+  region     = var.db_region
   node_count = 1
 
   tags = ["${var.project_name}", "database", "udap"]
@@ -121,7 +119,6 @@ resource "digitalocean_database_user" "app" {
   name       = "ecomm_user"
 }
 
-# Restrict DB access to the VPC only
 resource "digitalocean_database_firewall" "postgres" {
   cluster_id = digitalocean_database_cluster.postgres.id
 
@@ -132,12 +129,13 @@ resource "digitalocean_database_firewall" "postgres" {
 }
 
 # ─── Managed Redis ────────────────────────────────────────────────────────────
+# NOTE: DO database cluster region uses short slug "nyc" not "nyc3"
 resource "digitalocean_database_cluster" "redis" {
   name       = "${var.project_name}-redis"
   engine     = "redis"
   version    = "7"
   size       = "db-s-1vcpu-1gb"
-  region     = var.region
+  region     = var.db_region
   node_count = 1
 
   tags = ["${var.project_name}", "redis", "udap"]
@@ -152,7 +150,7 @@ resource "digitalocean_database_firewall" "redis" {
   }
 }
 
-# ─── DO Spaces (S3-compatible object storage + CDN) ───────────────────────────
+# ─── DO Spaces (object storage + CDN) ─────────────────────────────────────────
 resource "random_id" "spaces_suffix" {
   byte_length = 4
   keepers = {
@@ -164,13 +162,6 @@ resource "digitalocean_spaces_bucket" "media" {
   name   = "${var.project_name}-media-${random_id.spaces_suffix.hex}"
   region = var.region
   acl    = "public-read"
-
-  cors_rule {
-    allowed_headers = ["*"]
-    allowed_methods = ["GET", "PUT", "POST", "DELETE"]
-    allowed_origins = ["*"]
-    max_age_seconds = 3600
-  }
 }
 
 resource "digitalocean_cdn" "media" {
@@ -178,7 +169,7 @@ resource "digitalocean_cdn" "media" {
   ttl    = 3600
 }
 
-# ─── DO Project (groups all resources) ───────────────────────────────────────
+# ─── DO Project ───────────────────────────────────────────────────────────────
 resource "digitalocean_project" "main" {
   name        = var.project_name
   description = "E-commerce platform — managed by UDAP"
