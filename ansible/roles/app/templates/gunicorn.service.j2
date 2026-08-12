@@ -1,0 +1,26 @@
+[Unit]
+Description=Gunicorn — do-ecommerce-arch
+After=network.target
+
+[Service]
+Type=notify
+User={{ app_user }}
+Group=www-data
+WorkingDirectory={{ app_dir }}
+EnvironmentFile={{ app_dir }}/.env
+ExecStart={{ venv_dir }}/bin/gunicorn \
+    --workers {{ gunicorn_workers }} \
+    --bind unix:{{ gunicorn_socket }} \
+    --timeout 60 \
+    --access-logfile - \
+    --error-logfile - \
+    {{ project_module }}.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

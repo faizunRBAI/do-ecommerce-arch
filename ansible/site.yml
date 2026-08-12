@@ -1,0 +1,19 @@
+---
+- name: Configure do-ecommerce-arch web server
+  hosts: web
+  become: true
+  gather_facts: true
+
+  vars:
+    app_user: ecommerce
+    app_dir: /opt/ecommerce
+    venv_dir: /opt/ecommerce/venv
+    app_port: 8000
+    gunicorn_workers: 3
+    gunicorn_socket: /run/gunicorn/ecommerce.sock
+    project_module: do_ecommerce_arch
+
+  roles:
+    - common
+    - app
+    - webserver

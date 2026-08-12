@@ -1,0 +1,35 @@
+# udap:meta cloud=digitalocean region=nyc3 target=do-droplet
+
+users: Users { shape: person; udap-type: generic.user }
+spaces_cdn: DO Spaces + CDN { shape: rectangle; udap-type: do.droplet }
+lb: Load Balancer (SSL Termination) { shape: rectangle; udap-type: do.droplet }
+github: GitHub (CI/CD) { shape: rectangle; udap-type: generic.app }
+terraform: Terraform Provisioning { shape: rectangle; udap-type: generic.app }
+vpc: VPC + Cloud Firewall {
+  fw: Cloud Firewall { shape: rectangle; udap-type: do.droplet }
+  web1: Droplet 1 — NGINX + Gunicorn + Django { shape: rectangle; udap-type: do.droplet }
+  web2: Droplet 2 — NGINX + Gunicorn + Django { shape: rectangle; udap-type: do.droplet }
+  web3: Droplet 3 — NGINX + Gunicorn + Django { shape: rectangle; udap-type: do.droplet }
+  pg: Managed PostgreSQL (Primary + Replica) { shape: cylinder; udap-type: generic.db }
+  redis: Managed Redis (Sessions + Carts) { shape: cylinder; udap-type: generic.cache }
+}
+
+users -> spaces_cdn: HTTPS — static assets & product images
+users -> lb: HTTPS (port 443)
+lb -> vpc.fw: filtered ingress (port 80/443)
+vpc.fw -> vpc.web1: HTTP (port 80)
+vpc.fw -> vpc.web2: HTTP (port 80)
+vpc.fw -> vpc.web3: HTTP (port 80)
+vpc.web1 -> vpc.pg: SQL — reads & writes (port 5432)
+vpc.web2 -> vpc.pg: SQL — reads & writes (port 5432)
+vpc.web3 -> vpc.pg: SQL — reads & writes (port 5432)
+vpc.web1 -> vpc.redis: cache — sessions & carts (port 6379)
+vpc.web2 -> vpc.redis: cache — sessions & carts (port 6379)
+vpc.web3 -> vpc.redis: cache — sessions & carts (port 6379)
+vpc.web1 -> spaces_cdn: upload — product images & static files
+vpc.web2 -> spaces_cdn: upload — product images & static files
+vpc.web3 -> spaces_cdn: upload — product images & static files
+github -> terraform: trigger on push to main
+terraform -> vpc.web1: provision & deploy
+terraform -> vpc.web2: provision & deploy
+terraform -> vpc.web3: provision & deploy

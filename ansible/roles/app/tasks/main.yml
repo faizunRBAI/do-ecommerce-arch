@@ -1,0 +1,118 @@
+---
+- name: Create app directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0755"
+
+- name: Ensure ACL package is present
+  ansible.builtin.apt:
+    name: acl
+    state: present
+
+- name: Copy application code to server
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../manage.py"
+    dest: "{{ app_dir }}/manage.py"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0644"
+  notify: restart gunicorn
+
+- name: Copy Python package directories
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../{{ item }}"
+    dest: "{{ app_dir }}/"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: preserve
+  loop:
+    - api
+    - do_ecommerce_arch
+  notify: restart gunicorn
+
+- name: Copy requirements.txt
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../requirements.txt"
+    dest: "{{ app_dir }}/requirements.txt"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0644"
+
+- name: Create Python virtual environment
+  ansible.builtin.command:
+    cmd: python3.11 -m venv {{ venv_dir }}
+    creates: "{{ venv_dir }}/bin/activate"
+
+- name: Upgrade pip in venv
+  ansible.builtin.command:
+    cmd: "{{ venv_dir }}/bin/pip install --upgrade pip"
+    chdir: "{{ app_dir }}"
+  changed_when: true
+
+- name: Install Python dependencies
+  ansible.builtin.command:
+    cmd: "{{ venv_dir }}/bin/pip install -r requirements.txt --no-cache-dir"
+    chdir: "{{ app_dir }}"
+  changed_when: true
+
+- name: Set ownership of venv to app user
+  ansible.builtin.file:
+    path: "{{ venv_dir }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    recurse: true
+
+- name: Write .env file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: "0600"
+  no_log: true
+  notify: restart gunicorn
+
+- name: Run Django migrations
+  ansible.builtin.command:
+    cmd: "{{ venv_dir }}/bin/python manage.py migrate --noinput"
+    chdir: "{{ app_dir }}"
+  environment:
+    DJANGO_SETTINGS_MODULE: "{{ project_module }}.settings"
+    HOME: /tmp
+  changed_when: true
+
+- name: Collect static files
+  ansible.builtin.command:
+    cmd: "{{ venv_dir }}/bin/python manage.py collectstatic --noinput"
+    chdir: "{{ app_dir }}"
+  environment:
+    DJANGO_SETTINGS_MODULE: "{{ project_module }}.settings"
+    HOME: /tmp
+  changed_when: true
+
+- name: Install gunicorn systemd service
+  ansible.builtin.template:
+    src: gunicorn.service.j2
+    dest: /etc/systemd/system/gunicorn.service
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart gunicorn
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable gunicorn service
+  ansible.builtin.systemd:
+    name: gunicorn
+    enabled: true
+
+- name: Start gunicorn service
+  ansible.builtin.systemd:
+    name: gunicorn
+    state: started
