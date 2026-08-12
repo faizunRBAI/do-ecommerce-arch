@@ -22,23 +22,31 @@ jobs:
         uses: hashicorp/setup-terraform@v3
       - id: spaces_region
         name: Derive Spaces backend region
-        run: 'host="${AWS_ENDPOINT_URL_S3#https://}"
-
+        run: |
+          host="${AWS_ENDPOINT_URL_S3#https://}"
           region="${host%%.*}"
-
           echo "region=${region}" >> "$GITHUB_OUTPUT"
-
-          '
       - name: Terraform init
-        run: "terraform init -input=false -reconfigure \\ -backend-config=\"bucket=${{ secrets.TF_STATE_BUCKET }}\" \\ -backend-config=\"key=${{ secrets.PROJECT_NAME }}/terraform.tfstate\" \\ -backend-config=\"region=${{ steps.spaces_region.outputs.region }}\" \\ -backend-config=\"endpoint=${{ secrets.SPACES_ENDPOINT }}\" \\ -backend-config=\"skip_credentials_validation=true\" \\ -backend-config=\"skip_requesting_account_id=true\" \\ -backend-config=\"skip_metadata_api_check=true\" \\ -backend-config=\"skip_region_validation=true\" \\ -backend-config=\"skip_s3_checksum=true\" \\ -backend-config=\"use_path_style=true\" "
+        run: |
+          terraform init -input=false -reconfigure \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ secrets.PROJECT_NAME }}/terraform.tfstate" \
+            -backend-config="region=${{ steps.spaces_region.outputs.region }}" \
+            -backend-config="endpoint=${{ secrets.SPACES_ENDPOINT }}" \
+            -backend-config="skip_credentials_validation=true" \
+            -backend-config="skip_requesting_account_id=true" \
+            -backend-config="skip_metadata_api_check=true" \
+            -backend-config="skip_region_validation=true" \
+            -backend-config="skip_s3_checksum=true" \
+            -backend-config="use_path_style=true"
         working-directory: infra
       - name: Remove default VPC from Terraform state
-      # DigitalOcean returns HTTP 403 "Can not delete default VPCs" when
-      # terraform destroy tries to DELETE the account's default VPC. The VPC
-      # was recorded in state with the default VPC's ID, so we evict it from
-      # state here — Terraform then skips the DELETE call entirely, and the
-      # VPC remains in the account (as it must). Errors are suppressed because
-      # the resource may already have been removed from state on a retry run.
+        # DigitalOcean returns HTTP 403 "Can not delete default VPCs" when
+        # terraform destroy tries to DELETE the account's default VPC. The VPC
+        # was recorded in state with the default VPC's ID, so we evict it from
+        # state here — Terraform then skips the DELETE call entirely, and the
+        # VPC remains in the account (as it must). Errors are suppressed because
+        # the resource may already have been removed from state on a retry run.
         run: terraform state rm digitalocean_vpc.main || true
         working-directory: infra
       - name: Terraform destroy
