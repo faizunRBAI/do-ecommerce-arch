@@ -126,14 +126,19 @@ jobs:
         \ \\\n  -backend-config=\"skip_requesting_account_id=true\" \\\n  -backend-config=\"\
         skip_metadata_api_check=true\" \\\n  -backend-config=\"skip_region_validation=true\"\
         \ \\\n  -backend-config=\"skip_s3_checksum=true\" \\\n  -backend-config=\"\
-        use_path_style=true\"\ndroplet_ip=$(terraform output -raw droplet_ip)\ndb_host=$(terraform\
-        \ output -raw db_host)\ndb_port=$(terraform output -raw db_port)\ndb_name=$(terraform\
-        \ output -raw db_name)\ndb_user=$(terraform output -raw db_user)\necho \"\
-        droplet_ip=${droplet_ip}\" >> \"$GITHUB_OUTPUT\"\necho \"db_host=${db_host}\"\
-        \ >> \"$GITHUB_OUTPUT\"\necho \"db_port=${db_port}\" >> \"$GITHUB_OUTPUT\"\
-        \necho \"db_name=${db_name}\" >> \"$GITHUB_OUTPUT\"\necho \"db_user=${db_user}\"\
-        \ >> \"$GITHUB_OUTPUT\"\n"
+        use_path_style=true\"\ndroplet_ip=$(terraform output -raw droplet_ip)\necho\
+        \ \"droplet_ip=${droplet_ip}\" >> \"$GITHUB_OUTPUT\"\n"
       working-directory: infra
+    - id: db_uri
+      name: Read DB URI from Terraform output
+      run: 'uri=$(terraform output -raw db_uri)
+
+        echo "db_uri=${uri}" >> "$GITHUB_OUTPUT"
+
+        '
+      working-directory: infra
+      env:
+        DB_URI: ''
     - name: Scan host key
       run: 'ssh-keyscan -H "${{ steps.tf_outputs.outputs.droplet_ip }}" >> ~/.ssh/known_hosts
 
@@ -143,16 +148,13 @@ jobs:
         n' \\\n  \"${{ steps.tf_outputs.outputs.droplet_ip }}\" \\\n  \"${{ secrets.SSH_USER\
         \ }}\" \\\n  > ansible/inventory.ini\n"
     - name: Run Ansible playbook
-      run: "ansible-playbook -i ansible/inventory.ini ansible/site.yml \\\n  -e db_host=\"\
-        ${{ steps.tf_outputs.outputs.db_host }}\" \\\n  -e db_port=\"${{ steps.tf_outputs.outputs.db_port\
-        \ }}\" \\\n  -e db_name=\"${{ steps.tf_outputs.outputs.db_name }}\" \\\n \
-        \ -e db_user=\"${{ steps.tf_outputs.outputs.db_user }}\" \\\n  -e \"db_password=$EXTRA_DB_PASSWORD\"\
-        \ \\\n  -e \"django_secret_key=$EXTRA_DJANGO_SECRET\" \\\n  -e project_name=\"\
-        ${{ secrets.PROJECT_NAME }}\"\n"
+      run: "ansible-playbook -i ansible/inventory.ini ansible/site.yml \\\n  -e \"\
+        database_url=$EXTRA_DB_URI\" \\\n  -e \"django_secret_key=$EXTRA_DJANGO_SECRET\"\
+        \ \\\n  -e project_name=\"${{ secrets.PROJECT_NAME }}\"\n"
       env:
         ANSIBLE_HOST_KEY_CHECKING: 'False'
-        EXTRA_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         EXTRA_DJANGO_SECRET: ${{ secrets.DJANGO_SECRET_KEY }}
+        EXTRA_DB_URI: ${{ steps.db_uri.outputs.db_uri }}
   verify:
     runs-on: ubuntu-latest
     needs:
