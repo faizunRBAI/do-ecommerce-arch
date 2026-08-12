@@ -107,8 +107,8 @@ resource "digitalocean_database_cluster" "postgres" {
 
   tags = ["${var.project_name}", "database", "udap"]
 
-  # Prevent terraform from attempting live region migrations on existing clusters
   lifecycle {
+    # Prevent Terraform from attempting live region migration on existing clusters
     ignore_changes = [region]
   }
 }
@@ -132,44 +132,6 @@ resource "digitalocean_database_firewall" "postgres" {
   }
 }
 
-# ─── Managed Redis ────────────────────────────────────────────────────────────
-resource "digitalocean_database_cluster" "redis" {
-  name       = "${var.project_name}-redis"
-  engine     = "redis"
-  version    = "7"
-  size       = "db-s-1vcpu-1gb"
-  region     = var.region
-  node_count = 1
-
-  tags = ["${var.project_name}", "redis", "udap"]
-
-  lifecycle {
-    ignore_changes = [region]
-  }
-}
-
-resource "digitalocean_database_firewall" "redis" {
-  cluster_id = digitalocean_database_cluster.redis.id
-
-  rule {
-    type  = "droplet"
-    value = digitalocean_droplet.web.id
-  }
-}
-
-# ─── DO Spaces (object storage + CDN) ─────────────────────────────────────────
-# Deterministic name derived from project_name — idempotent across runs
-resource "digitalocean_spaces_bucket" "media" {
-  name   = "${var.project_name}-media"
-  region = var.region
-  acl    = "public-read"
-}
-
-resource "digitalocean_cdn" "media" {
-  origin = digitalocean_spaces_bucket.media.bucket_domain_name
-  ttl    = 3600
-}
-
 # ─── DO Project ───────────────────────────────────────────────────────────────
 resource "digitalocean_project" "main" {
   name        = var.project_name
@@ -181,7 +143,5 @@ resource "digitalocean_project" "main" {
     digitalocean_droplet.web.urn,
     digitalocean_loadbalancer.web.urn,
     digitalocean_database_cluster.postgres.urn,
-    digitalocean_database_cluster.redis.urn,
-    digitalocean_spaces_bucket.media.urn,
   ]
 }

@@ -4,27 +4,13 @@ variable "do_token" {
   sensitive   = true
 }
 
-variable "spaces_access_key" {
-  description = "DigitalOcean Spaces access key ID"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "spaces_secret_key" {
-  description = "DigitalOcean Spaces secret access key"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 variable "project_name" {
   description = "Project name used as a resource prefix (lowercase, hyphens only)"
   type        = string
 }
 
 variable "region" {
-  description = "DigitalOcean region slug for Droplets, LB, Spaces, and database clusters"
+  description = "DigitalOcean region slug for Droplets, LB, and database clusters"
   type        = string
   default     = "nyc3"
 }

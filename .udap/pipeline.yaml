@@ -44,8 +44,6 @@ stages:
     env:
       DIGITALOCEAN_TOKEN: ${{ secrets.DO_TOKEN }}
       TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
-      TF_VAR_spaces_access_key: ${{ secrets.SPACES_ACCESS_KEY }}
-      TF_VAR_spaces_secret_key: ${{ secrets.SPACES_SECRET_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.SPACES_ENDPOINT }}
@@ -82,35 +80,6 @@ stages:
       - name: Terraform apply
         working-directory: infra
         run: terraform apply -input=false tfplan
-      - name: Get droplet IP
-        id: get_ip
-        working-directory: infra
-        run: |
-          ip=$(terraform output -raw droplet_ip)
-          echo "droplet_ip=${ip}" >> "$GITHUB_OUTPUT"
-      - name: Get DB host
-        id: get_db
-        working-directory: infra
-        run: |
-          db_host=$(terraform output -raw db_host)
-          echo "db_host=${db_host}" >> "$GITHUB_OUTPUT"
-      - name: Get Redis host
-        id: get_redis
-        working-directory: infra
-        run: |
-          redis_host=$(terraform output -raw redis_host)
-          echo "redis_host=${redis_host}" >> "$GITHUB_OUTPUT"
-      - name: Get Spaces bucket
-        id: get_spaces
-        working-directory: infra
-        run: |
-          bucket=$(terraform output -raw spaces_bucket_name)
-          echo "spaces_bucket=${bucket}" >> "$GITHUB_OUTPUT"
-    outputs:
-      droplet_ip: ${{ steps.get_ip.outputs.droplet_ip }}
-      db_host: ${{ steps.get_db.outputs.db_host }}
-      redis_host: ${{ steps.get_redis.outputs.redis_host }}
-      spaces_bucket: ${{ steps.get_spaces.outputs.spaces_bucket }}
 
   - id: configure
     kind: configure
@@ -119,8 +88,6 @@ stages:
     env:
       DIGITALOCEAN_TOKEN: ${{ secrets.DO_TOKEN }}
       TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
-      TF_VAR_spaces_access_key: ${{ secrets.SPACES_ACCESS_KEY }}
-      TF_VAR_spaces_secret_key: ${{ secrets.SPACES_SECRET_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.SPACES_ENDPOINT }}
@@ -164,25 +131,11 @@ stages:
           db_port=$(terraform output -raw db_port)
           db_name=$(terraform output -raw db_name)
           db_user=$(terraform output -raw db_user)
-          redis_host=$(terraform output -raw redis_host)
-          redis_port=$(terraform output -raw redis_port)
-          spaces_bucket=$(terraform output -raw spaces_bucket_name)
-          spaces_region=$(terraform output -raw spaces_region)
           echo "droplet_ip=${droplet_ip}" >> "$GITHUB_OUTPUT"
           echo "db_host=${db_host}" >> "$GITHUB_OUTPUT"
           echo "db_port=${db_port}" >> "$GITHUB_OUTPUT"
           echo "db_name=${db_name}" >> "$GITHUB_OUTPUT"
           echo "db_user=${db_user}" >> "$GITHUB_OUTPUT"
-          echo "redis_host=${redis_host}" >> "$GITHUB_OUTPUT"
-          echo "redis_port=${redis_port}" >> "$GITHUB_OUTPUT"
-          echo "spaces_bucket=${spaces_bucket}" >> "$GITHUB_OUTPUT"
-          echo "spaces_region=${spaces_region}" >> "$GITHUB_OUTPUT"
-      - name: Read Redis password from Terraform output
-        id: redis_pw
-        working-directory: infra
-        run: |
-          pw=$(terraform output -raw redis_password)
-          echo "redis_password=${pw}" >> "$GITHUB_OUTPUT"
       - name: Scan host key
         run: |
           ssh-keyscan -H "${{ steps.tf_outputs.outputs.droplet_ip }}" >> ~/.ssh/known_hosts
@@ -197,9 +150,6 @@ stages:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           EXTRA_DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           EXTRA_DJANGO_SECRET: ${{ secrets.DJANGO_SECRET_KEY }}
-          EXTRA_SPACES_ACCESS: ${{ secrets.SPACES_ACCESS_KEY }}
-          EXTRA_SPACES_SECRET: ${{ secrets.SPACES_SECRET_KEY }}
-          EXTRA_REDIS_PW: ${{ steps.redis_pw.outputs.redis_password }}
         run: |
           ansible-playbook -i ansible/inventory.ini ansible/site.yml \
             -e db_host="${{ steps.tf_outputs.outputs.db_host }}" \
@@ -207,13 +157,6 @@ stages:
             -e db_name="${{ steps.tf_outputs.outputs.db_name }}" \
             -e db_user="${{ steps.tf_outputs.outputs.db_user }}" \
             -e "db_password=$EXTRA_DB_PASSWORD" \
-            -e redis_host="${{ steps.tf_outputs.outputs.redis_host }}" \
-            -e redis_port="${{ steps.tf_outputs.outputs.redis_port }}" \
-            -e "redis_password=$EXTRA_REDIS_PW" \
-            -e spaces_bucket="${{ steps.tf_outputs.outputs.spaces_bucket }}" \
-            -e spaces_region="${{ steps.tf_outputs.outputs.spaces_region }}" \
-            -e "spaces_access_key=$EXTRA_SPACES_ACCESS" \
-            -e "spaces_secret_key=$EXTRA_SPACES_SECRET" \
             -e "django_secret_key=$EXTRA_DJANGO_SECRET" \
             -e project_name="${{ secrets.PROJECT_NAME }}"
 
@@ -224,8 +167,6 @@ stages:
     env:
       DIGITALOCEAN_TOKEN: ${{ secrets.DO_TOKEN }}
       TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
-      TF_VAR_spaces_access_key: ${{ secrets.SPACES_ACCESS_KEY }}
-      TF_VAR_spaces_secret_key: ${{ secrets.SPACES_SECRET_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_KEY }}
       AWS_ENDPOINT_URL_S3: ${{ secrets.SPACES_ENDPOINT }}
@@ -270,8 +211,6 @@ destroy:
   env:
     DIGITALOCEAN_TOKEN: ${{ secrets.DO_TOKEN }}
     TF_VAR_do_token: ${{ secrets.DO_TOKEN }}
-    TF_VAR_spaces_access_key: ${{ secrets.SPACES_ACCESS_KEY }}
-    TF_VAR_spaces_secret_key: ${{ secrets.SPACES_SECRET_KEY }}
     AWS_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY }}
     AWS_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_KEY }}
     AWS_ENDPOINT_URL_S3: ${{ secrets.SPACES_ENDPOINT }}

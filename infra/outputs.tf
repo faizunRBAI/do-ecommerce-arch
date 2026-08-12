@@ -29,38 +29,7 @@ output "db_user" {
 }
 
 output "db_uri" {
-  description = "Full PostgreSQL connection URI (uses master user)"
+  description = "Full PostgreSQL connection URI (private network)"
   value       = digitalocean_database_cluster.postgres.private_uri
   sensitive   = true
-}
-
-output "redis_host" {
-  description = "Managed Redis private hostname"
-  value       = digitalocean_database_cluster.redis.private_host
-}
-
-output "redis_port" {
-  description = "Managed Redis port"
-  value       = digitalocean_database_cluster.redis.port
-}
-
-output "redis_password" {
-  description = "Managed Redis authentication password"
-  value       = digitalocean_database_cluster.redis.password
-  sensitive   = true
-}
-
-output "spaces_bucket_name" {
-  description = "DO Spaces bucket name for media files"
-  value       = digitalocean_spaces_bucket.media.name
-}
-
-output "spaces_region" {
-  description = "DO Spaces region"
-  value       = digitalocean_spaces_bucket.media.region
-}
-
-output "spaces_cdn_endpoint" {
-  description = "DO Spaces CDN endpoint URL"
-  value       = digitalocean_cdn.media.endpoint
 }
