@@ -6,10 +6,6 @@ terraform {
       source  = "digitalocean/digitalocean"
       version = "~> 2.40"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.6"
-    }
   }
 
   backend "s3" {}

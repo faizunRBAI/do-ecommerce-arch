@@ -24,15 +24,9 @@ variable "project_name" {
 }
 
 variable "region" {
-  description = "DigitalOcean region slug (Droplet/LB/Spaces)"
+  description = "DigitalOcean region slug for Droplets, LB, Spaces, and database clusters"
   type        = string
   default     = "nyc3"
-}
-
-variable "db_region" {
-  description = "DigitalOcean database cluster region slug (databases API uses 'nyc' not 'nyc3')"
-  type        = string
-  default     = "nyc"
 }
 
 variable "droplet_size" {

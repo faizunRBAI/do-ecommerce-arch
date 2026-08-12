@@ -97,16 +97,20 @@ resource "digitalocean_loadbalancer" "web" {
 }
 
 # ─── Managed PostgreSQL ───────────────────────────────────────────────────────
-# NOTE: DO database cluster region uses short slug "nyc" not "nyc3"
 resource "digitalocean_database_cluster" "postgres" {
   name       = "${var.project_name}-pg"
   engine     = "pg"
   version    = "16"
   size       = "db-s-1vcpu-1gb"
-  region     = var.db_region
+  region     = var.region
   node_count = 1
 
   tags = ["${var.project_name}", "database", "udap"]
+
+  # Prevent terraform from attempting live region migrations on existing clusters
+  lifecycle {
+    ignore_changes = [region]
+  }
 }
 
 resource "digitalocean_database_db" "app" {
@@ -129,16 +133,19 @@ resource "digitalocean_database_firewall" "postgres" {
 }
 
 # ─── Managed Redis ────────────────────────────────────────────────────────────
-# NOTE: DO database cluster region uses short slug "nyc" not "nyc3"
 resource "digitalocean_database_cluster" "redis" {
   name       = "${var.project_name}-redis"
   engine     = "redis"
   version    = "7"
   size       = "db-s-1vcpu-1gb"
-  region     = var.db_region
+  region     = var.region
   node_count = 1
 
   tags = ["${var.project_name}", "redis", "udap"]
+
+  lifecycle {
+    ignore_changes = [region]
+  }
 }
 
 resource "digitalocean_database_firewall" "redis" {
@@ -151,15 +158,9 @@ resource "digitalocean_database_firewall" "redis" {
 }
 
 # ─── DO Spaces (object storage + CDN) ─────────────────────────────────────────
-resource "random_id" "spaces_suffix" {
-  byte_length = 4
-  keepers = {
-    project = var.project_name
-  }
-}
-
+# Deterministic name derived from project_name — idempotent across runs
 resource "digitalocean_spaces_bucket" "media" {
-  name   = "${var.project_name}-media-${random_id.spaces_suffix.hex}"
+  name   = "${var.project_name}-media"
   region = var.region
   acl    = "public-read"
 }
